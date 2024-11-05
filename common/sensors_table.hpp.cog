@@ -1,0 +1,75 @@
+#pragma once
+#include <cstdint>
+
+namespace sensors {
+
+/* [[[cog
+import cog
+from ntctable import *
+
+name = 'ntc10k'
+cog.outl(f'const float {name}[] = {{')
+low = -45
+high = 120
+
+ntc = NTC(10000, 3980)
+ntc_table = get_ntc(ntc, low, high)
+
+line = 8
+
+cnt = 0
+for v in ntc_table:
+    out_str = f'{v['r']}f'
+    cog.out(out_str)
+    end = '' if cnt == len(ntc_table) - 1 else ', '
+    line -= 1
+    if line == 0:
+        line = 8
+        cog.outl(end)
+    else:
+        cog.out(end)
+    
+    cnt += 1
+
+cog.outl('')
+cog.outl('};')
+cog.outl(f'constexpr float {name}_offset = {high}.0f;')
+]]]*/
+//[[[end]]]
+
+
+/* [[[cog
+import cog
+from ntctable import *
+
+name = 'ntc3k'
+cog.outl(f'const float {name}[] = {{')
+offset = -45
+
+ntc = NTC(3000, 3980)
+ntc_table = get_ntc(ntc, offset, 120)
+
+line = 8
+cnt = 0
+for v in ntc_table:
+    out_str = f'{v['r']}f'
+    cog.out(out_str)
+    end = '' if cnt == len(ntc_table) - 1 else ', '
+    line -= 1
+    if line == 0:
+        line = 8
+        cog.outl(end)
+    else:
+        cog.out(end)
+    
+    cnt += 1
+
+cog.outl('')
+cog.outl('};')
+cog.outl(f'constexpr float {name}_offset = {offset}.0f;')
+]]]*/
+//[[[end]]]
+
+
+
+} // namespace sensors

@@ -1,0 +1,35 @@
+#pragma once
+#include <cstdint>
+
+namespace tec {
+
+/// @brief The TEC controller commands
+enum class Commands : uint8_t {
+
+/* [[[cog
+import cog
+import json
+
+with open(command_json) as f:
+    jdata = json.load(f)
+    commands = jdata['commands']
+    commands = sorted(commands, key=lambda x: x['address'])
+    cnt = 0
+    for c in commands:
+        name = c['name']
+        c_repr = c['repr']
+        address = c['address']
+        out_str = f'{name} = 0x{address:02X},  ///< {c_repr}'
+        cog.out(out_str)
+        if cnt == len(commands) - 1:
+            cog.outl('')
+        else:
+            cog.outl(',')
+        cnt += 1
+
+]]]*/
+//[[[end]]]
+
+};
+
+} // namespace tec
