@@ -34,6 +34,9 @@
         "chrono": "cpp",
         "ratio": "cpp",
         "*.tcc": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "stm32f4xx_it.h": "c",
+        "peripheral_init.h": "c",
+        "stm32f4xx_hal.h": "c"
     }
 }
