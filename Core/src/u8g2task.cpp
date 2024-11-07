@@ -1,6 +1,7 @@
 ﻿#include <FreeRTOS.h>
 #include <task.h>
 #include <u8g2.h>
+#include <U8g2lib.h>
 #include <etl/vector.h>
 #include "u8g2task.h"
 #include <stm32f4xx_hal.h>
@@ -23,31 +24,31 @@ void InitU8GTask() {
     xTaskCreateStatic(vDisplayTask, "Disp", StatStackSize, nullptr, configMAX_PRIORITIES - 1, ucStatStack, &xTCBTaskStat);
 }
 
-static u8g2_t u8g2;
-
 static uint8_t u8x8_byte_stm32_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 static uint8_t u8x8_stm32_gpio_and_delay(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
+
+static U8G2 display;
 
 void vDisplayTask(void *pvParameters) {
 (void)pvParameters;
     RTT_LOGI(TAG, "Init");
-    u8g2_Setup_ssd1309_i2c_128x64_noname0_f(&u8g2, U8G2_R0, u8x8_byte_stm32_hw_i2c, u8x8_stm32_gpio_and_delay);
-    u8g2_SetI2CAddress(&u8g2, 0x3C);    
-    u8g2_InitDisplay(&u8g2);
-    u8g2_SetPowerSave(&u8g2, 0);
+    
+    u8g2_Setup_ssd1309_i2c_128x64_noname0_f(display.getU8g2(), U8G2_R0, u8x8_byte_stm32_hw_i2c, u8x8_stm32_gpio_and_delay);
+    display.setI2CAddress(0x3C);
+    display.initDisplay();
+    display.setPowerSave(0);
 
     for (;;) {
-        u8g2_FirstPage(&u8g2);
+        display.firstPage();
         do {
-            u8g2_ClearBuffer(&u8g2);
-            u8g2_SetDrawColor(&u8g2, 2);
-            u8g2_DrawFrame(&u8g2, 0, 0, u8g2.width, u8g2.height);
-
-            u8g2_SetFont(&u8g2, u8g2_font_unifont_t_cyrillic);
-            auto offset = u8g2_DrawUTF8(&u8g2, 5, 36, "Снеговик:");
-            u8g2_SetFont(&u8g2, u8g2_font_unifont_t_symbols);
-            u8g2_DrawUTF8(&u8g2, 5 + offset, 36, " ☃");
-        } while (u8g2_NextPage(&u8g2));
+            display.clearBuffer();
+            display.setDrawColor(2);
+            display.drawFrame(0, 0, display.getWidth(), display.getHeight());
+            display.setFont(u8g2_font_unifont_t_cyrillic);
+            auto offset = display.drawUTF8(5, 36, "Снеговик:");
+            display.setFont(u8g2_font_unifont_t_symbols);
+            display.drawUTF8(5 + offset, 36, " ☃");
+        } while (display.nextPage());
 
         vTaskDelay(50);
     }

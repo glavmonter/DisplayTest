@@ -80,7 +80,7 @@ set(MIDDLEWARES_INC "Middlewares")
 set(FREERTOS "Middlewares/FreeRTOS")
 set(FREERTOS_ADDONS_INC "Middlewares/FreeRTOS-addons/include")
 set(RINGBUFFER_INC "Middlewares/RingBuffer")
-set(U8G2_INC "Middlewares/u8g2")
+set(U8G2_INC "Middlewares/u8g2" "Middlewares/u8g2cpp")
 
 include_directories(${CMSIS_INC})
 include_directories(${SPL_INC})
@@ -134,7 +134,7 @@ set(POSTFIX "${POSTFIX}")
 set(PN "DisplayTest${POSTFIX}")
 add_executable(${PN}.elf ${PROJECT_SRC} ${COMMON_SRC})
 set_options(${PN} ${LINKER_SCRIPT})
-target_link_libraries(${PN}.elf PRIVATE spl rtt printf freertos logging u8g2)
+target_link_libraries(${PN}.elf PRIVATE spl rtt printf freertos logging u8g2 u8g2cpp)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif() # Debug build
