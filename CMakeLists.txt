@@ -80,6 +80,7 @@ set(MIDDLEWARES_INC "Middlewares")
 set(FREERTOS "Middlewares/FreeRTOS")
 set(FREERTOS_ADDONS_INC "Middlewares/FreeRTOS-addons/include")
 set(RINGBUFFER_INC "Middlewares/RingBuffer")
+set(U8G2_INC "Middlewares/u8g2")
 
 include_directories(${CMSIS_INC})
 include_directories(${SPL_INC})
@@ -93,6 +94,7 @@ include_directories(${FREERTOS}/portable/GCC/ARM_CM4F)
 include_directories(${FREERTOS_ADDONS_INC})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${LOGGING_INC})
+include_directories(${U8G2_INC})
 
 set(FREERTOS_HEAP_SIZE_KB  2)
 set(FREERTOS_ADDONS_DEFINITIONS "-DCPP_FREERTOS_NO_CPP_STRINGS -DCPP_FREERTOS_NO_EXCEPTIONS")
@@ -116,6 +118,7 @@ set(PROJECT_SRC
     "Core/src/stm32f4xx_hal_msp.c"
     "Core/src/stm32f4xx_hal_timebase_tim.c"
     "Core/src/stm32f4xx_it.c"
+    "Core/src/u8g2task.cpp"
 )
 
 get_git_version(VERSION_MAJOR VERSION_MINOR VERSION_PATCH VERSION_SHORT VERSION_FULL)
@@ -131,7 +134,7 @@ set(POSTFIX "${POSTFIX}")
 set(PN "DisplayTest${POSTFIX}")
 add_executable(${PN}.elf ${PROJECT_SRC} ${COMMON_SRC})
 set_options(${PN} ${LINKER_SCRIPT})
-target_link_libraries(${PN}.elf PRIVATE spl rtt printf freertos logging)
+target_link_libraries(${PN}.elf PRIVATE spl rtt printf freertos logging u8g2)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif() # Debug build

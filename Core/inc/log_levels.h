@@ -22,6 +22,10 @@
 #define LOG_TAG_MAIN_LEVEL                  RTT_LOG_DEBUG ///< Log level for TAG "MAIN"
 #endif
 
+#ifndef LOG_TAG_DISPLAY_LEVEL
+#define LOG_TAG_DISPLAY_LEVEL               RTT_LOG_INFO
+#endif
+
 #ifndef LOG_TAG_IIC_LOCAL_LEVEL
 #define LOG_TAG_IIC_LOCAL_LEVEL             RTT_LOG_DEBUG
 #endif
@@ -31,6 +35,7 @@
 // Если CONFIG_LOG_MAXIMUM_LEVEL == RTT_LOG_NONE, то все локальные уровни выставляем в RTT_LOG_NONE
 #define LOG_TAG_USB_LOCAL_LEVEL             RTT_LOG_NONE
 #define LOG_TAG_MAIN_LEVEL                  RTT_LOG_NONE
+#define LOG_TAG_DISPLAY_LEVEL               RTT_LOG_NONE
 #define LOG_TAG_IIC_LOCAL_LEVEL             RTT_LOG_NONE
 #endif
 

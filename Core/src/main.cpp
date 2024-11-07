@@ -15,6 +15,7 @@ static const char *TAG     = "   MAIN";
 static const char *TAG_RTS = "    RTS";
 
 #include <printf.h>
+#include "u8g2task.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,7 +51,7 @@ int main(void) {
         rtt_log_set_vprintf([](const char *sFormat, va_list va) { return vprintf(sFormat, va); });
     }
     HAL_Init();
-
+    MX_I2C1_Init();
     RTT_LOGI(TAG, "Hello");
 
 #if configGENERATE_RUN_TIME_STATS == 1
@@ -58,6 +59,7 @@ int main(void) {
     xTaskCreateStatic(vStatTask, "Stat", StatStackSize, nullptr, configMAX_PRIORITIES - 2, ucStatStack, &xTCBTaskStat);
 #endif
 
+    InitU8GTask();
     vTaskStartScheduler();
     int cnt = 0;
     for (;;) {

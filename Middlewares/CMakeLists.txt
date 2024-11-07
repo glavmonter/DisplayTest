@@ -7,3 +7,10 @@ SET(LOGGING_SRC logging/log_buffers.cpp
                 logging/log_freertos.cpp
                 logging/log.cpp)
 add_library(logging ${LOGGING_SRC})
+
+
+file(GLOB U8G2_SRCS u8g2/*.c)
+file(GLOB U8G2_HDRS u8g2/*.h)
+
+add_library(u8g2 ${U8G2_SRCS})
+target_include_directories(u8g2 PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/u8g2>" "$<INSTALL_INTERFACE:include>")
