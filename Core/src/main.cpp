@@ -51,21 +51,20 @@ int main(void) {
         rtt_log_set_vprintf([](const char *sFormat, va_list va) { return vprintf(sFormat, va); });
     }
     HAL_Init();
+    MX_GPIO_Init();
     MX_I2C1_Init();
+    MX_SPI2_Init();
+    
+    InitEncoderTimer();
     RTT_LOGI(TAG, "Hello");
 
 #if configGENERATE_RUN_TIME_STATS == 1
     InitRuntimeStatisticTimer();
-    xTaskCreateStatic(vStatTask, "Stat", StatStackSize, nullptr, configMAX_PRIORITIES - 2, ucStatStack, &xTCBTaskStat);
+    xTaskCreateStatic(vStatTask, "Stat", StatStackSize, nullptr, configMAX_PRIORITIES - 1, ucStatStack, &xTCBTaskStat);
 #endif
 
     InitU8GTask();
     vTaskStartScheduler();
-    int cnt = 0;
-    for (;;) {
-        HAL_Delay(1000);
-        printf("Ping: %d\n", cnt); cnt++;
-    }
 }
 
 
@@ -186,6 +185,10 @@ static StackType_t uxTimerTaskStack[configTIMER_TASK_STACK_DEPTH];
     *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
+
+extern "C" void vApplicationIdleHook( void ) {
+
+}
 
 void vApplicationTickHook() {
 }

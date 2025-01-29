@@ -37,6 +37,10 @@
         "cmath": "cpp",
         "stm32f4xx_it.h": "c",
         "peripheral_init.h": "c",
-        "stm32f4xx_hal.h": "c"
+        "stm32f4xx_hal.h": "c",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "system_error": "cpp",
+        "thread": "cpp"
     }
 }

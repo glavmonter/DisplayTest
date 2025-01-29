@@ -16,7 +16,7 @@ set(SPL_SRC
         "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_rcc_ex.c"
         "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_rcc.c"
         # "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_spi_ex.c"
-        # "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_spi.c"
+        "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_spi.c"
         "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_tim_ex.c"
         "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_tim.c"
         # "STM32F4xx_HAL_Driver/src/stm32f4xx_hal_uart_ex.c"
