@@ -28,6 +28,31 @@
                     }
                 ]
             }
+        },
+        {
+            "name": "Debug DisplayTest Linux",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/build/DisplayTestd.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            //"runToEntryPoint": "main",
+            "serverpath": "/opt/SEGGER/JLink/JLinkGDBServerCLExe",
+            "servertype": "jlink",
+            "interface": "swd",
+            "device": "STM32F401CC",
+            "svdFile": "${workspaceRoot}/Drivers/CMSIS/Device/ST/STM32F4xx/STM32F401.svd",
+            "rtos": "FreeRTOS",
+            "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "decoders": [
+                    {
+                        "label": "",
+                        "port": 0,
+                        "type": "console"
+                    }
+                ]
+            }
         }
     ]
 }
