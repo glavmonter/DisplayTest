@@ -23,7 +23,7 @@
 #endif
 
 #ifndef LOG_TAG_DISPLAY_LEVEL
-#define LOG_TAG_DISPLAY_LEVEL               RTT_LOG_INFO
+#define LOG_TAG_DISPLAY_LEVEL               RTT_LOG_DEBUG
 #endif
 
 #ifndef LOG_TAG_IIC_LOCAL_LEVEL

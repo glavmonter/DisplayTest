@@ -129,5 +129,6 @@ void InitEncoderTimer(void) {
         assert_param(0);
     }
 
+    __HAL_TIM_SetCounter(&hTimEncoder, 0xFFFF >> 1);
     HAL_TIM_Encoder_Start(&hTimEncoder, TIM_CHANNEL_ALL);
 }

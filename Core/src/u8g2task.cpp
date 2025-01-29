@@ -5,6 +5,7 @@
 #include <U8g2lib.h>
 #include <MUIU8g2.h>
 #include <etl/vector.h>
+#include <etl/math.h>
 #include <etl/debounce.h>
 #include "u8g2task.h"
 #include <stm32f4xx_hal.h>
@@ -36,7 +37,7 @@ enum Button {
 } ;
 
 void InitU8GTask() {
-    xTaskCreateStatic(vDisplayTask, "Disp", StatStackSize, nullptr, tskIDLE_PRIORITY, ucStatStack, &xTCBTaskStat);
+    xTaskCreateStatic(vDisplayTask, "Disp", StatStackSize, nullptr, tskIDLE_PRIORITY + 1, ucStatStack, &xTCBTaskStat);
     xTaskCreate(vButtonTask, "Btn", configMINIMAL_STACK_SIZE, nullptr, configMAX_PRIORITIES - 1, nullptr);
     btnQueue = xQueueCreate(1, sizeof(uint32_t));
 }
@@ -47,24 +48,31 @@ static uint8_t u8x8_stm32_gpio_and_delay(u8x8_t *u8x8, uint8_t msg, uint8_t arg_
 static U8G2 display;
 MUIU8G2 mui;
 
-muif_t muif_list[] = {
+uint8_t exit_code = 0;
+uint8_t number_input = 2;
+
+const muif_t muif_list[] = {
     MUIF_U8G2_FONT_STYLE(0, u8g2_font_helvR08_tr),
-    MUIF_U8G2_LABEL(),
-    MUIF_BUTTON("BN", mui_u8g2_btn_exit_wm_fi)
+    MUIF_VARIABLE("LV", &exit_code, mui_u8g2_btn_exit_wm_fi),
+    MUIF_U8G2_U8_MIN_MAX("IN", &number_input, 0, 9, mui_u8g2_u8_min_max_wm_mud_pi),
+    MUIF_LABEL(mui_u8g2_draw_text)
 };
 
 
 
-fds_t fds_data[] = 
+const fds_t fds_data[] = 
     MUI_FORM(1)
     MUI_STYLE(0)
-    MUI_LABEL(5, 15, "Hello U8g2")
-    MUI_XYT("BN", 64, 30, "Select Me");
+    MUI_LABEL(5, 12, "Countdown Time")
+    MUI_LABEL(5, 30, "Seconds:")
+    MUI_XY("IN", 60, 30)
+    MUI_XYT("LV", 64, 59, " OK ");
+
+
 
 void vDisplayTask(void *pvParameters) {
 (void)pvParameters;
-char str[16];
-
+    char buf[16];
     RTT_LOGI(TAG, "Init");
 
     u8g2_Setup_ssd1309_i2c_128x64_noname0_f(display.getU8g2(), U8G2_R0, u8x8_byte_stm32_hw_i2c, u8x8_stm32_gpio_and_delay);
@@ -76,22 +84,25 @@ char str[16];
     mui.begin(display, fds_data, muif_list, sizeof(muif_list) / sizeof(muif_t));
     mui.gotoForm(1, 0);
 
+    int32_t milliseconds = 0;
+
     TickType_t t = xTaskGetTickCount();
     for (;;) {
         bool is_redraw = true;
         uint32_t btn_state;
         if (xQueueReceive(btnQueue, &btn_state, 0) == pdTRUE) {
             if (btn_state & (Push)) {
+                RTT_LOGI(TAG, "MUI: sendSelect");
                 mui.sendSelect();
                 is_redraw = true;
             } else if (btn_state & (Next)) {
+                RTT_LOGI(TAG, "MUI: nextField");
                 mui.nextField();
                 is_redraw = true;
             } else if (btn_state & (Last)) {
+                RTT_LOGI(TAG, "MUI: prevField");
                 mui.prevField();
                 is_redraw = true;
-            } else if (btn_state & LongPush) {
-                mui.restoreForm();
             }
         }
 
@@ -103,43 +114,37 @@ char str[16];
                 } while (display.nextPage());
                 is_redraw = false;
             }
+
+            milliseconds = number_input * 1000;
         } else {
-            // Меню не активно, рисуем снеговика
-            display.firstPage();
-            do {
-                display.clearBuffer();
-                display.setDrawColor(2);
-                display.drawFrame(0, 0, display.getWidth(), display.getHeight());
-                
-                display.setFont(u8g2_font_unifont_t_symbols);
-                bool dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&hTimEncoder);
-                u8g2_uint_t offset = 0;
-                if (dir) {
-                    offset = display.drawUTF8(5, 16, "Enc ↓");
-                } else {
-                    offset = display.drawUTF8(5, 16, "Enc ↑");
-                }
-                
-                snprintf(str, sizeof(str), "%u", __HAL_TIM_GET_COUNTER(&hTimEncoder));
-                display.drawStr(5 + offset, 16, str);
-
-                display.setFont(u8g2_font_unifont_t_cyrillic);
-                offset = display.drawUTF8(5, 60, "Снеговик:");
-                display.setFont(u8g2_font_unifont_t_symbols);
-                display.drawUTF8(5 + offset, 60, " ☃");
-            } while (display.nextPage()); // ~ 30 ms on 400 kHz i2c and 110 ms on 100 kHz ms. Независимо от отрисовываемых данных
+            if (milliseconds <= 0) {
+                mui.restoreForm();
+            } else {
+                display.setFont(u8g2_font_helvR08_tr);
+                display.firstPage();
+                do {
+                    snprintf(buf, sizeof(buf), "%d", milliseconds);
+                    display.drawStr(0, 20, buf);
+                } while (display.nextPage());
+            }
+            milliseconds -= 100;
         }
-
-        vTaskDelayUntil(&t, 10);
+ 
+        vTaskDelayUntil(&t, 100);
     }
 }
 
-etl::debounce<70, 500> push_button;
+etl::debounce<70/2, 500/2> push_button;
+
+#define ENCODER_UPDATE_RATE     (50)
 
 void vButtonTask(void *pvParameters) {
 (void)pvParameters;
     vTaskDelay(200);
-
+    
+    uint32_t encoderCheck = 50;
+    uint16_t lastCnt = __HAL_TIM_GET_COUNTER(&hTimEncoder);
+    TickType_t lastTick = xTaskGetTickCount();
     for (;;) {
         auto pin = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_RESET; // true - нажата (кнопка на землю)
         if (push_button.add(pin)) {
@@ -148,21 +153,33 @@ void vButtonTask(void *pvParameters) {
             RTT_LOGI(TAG, "  Button   Held: %d", push_button.is_held());
             RTT_LOGI(TAG, "  Button Repeat: %d", push_button.is_repeating());
 
-            if (push_button.is_held() && push_button.is_repeating()) {
-                __HAL_TIM_SET_COUNTER(&hTimEncoder, 0);
-            }
-
             if (push_button.is_set()) {
-                uint32_t b = 1 << 0;
-                xQueueOverwrite(btnQueue, &b);
-            }
-
-            if (push_button.is_held()) {
-                uint32_t b = LongPush;
+                uint32_t b = Push;
                 xQueueOverwrite(btnQueue, &b);
             }
         }
-        vTaskDelay(1);
+
+        if (encoderCheck == 0) {
+            uint16_t currentCnt = __HAL_TIM_GET_COUNTER(&hTimEncoder);
+            if (currentCnt != lastCnt) {
+                uint32_t b;
+                auto delta = etl::absolute_unsigned(currentCnt - lastCnt);
+                RTT_LOGD(TAG, " Enc delta: %d, cnt: %d", delta, currentCnt);
+                if (delta >= 2) {
+                    if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&hTimEncoder)) {
+                        b = Next;
+                    } else {
+                        b = Last;
+                    }
+                    xQueueOverwrite(btnQueue, &b);
+                }
+                lastCnt = currentCnt;
+            }
+            encoderCheck = ENCODER_UPDATE_RATE;
+        }
+
+        encoderCheck--;
+        vTaskDelayUntil(&lastTick, 2);
     }
 }
 
@@ -171,20 +188,20 @@ uint8_t u8x8_stm32_gpio_and_delay(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, vo
     (void)arg_ptr;
     switch (msg) {
         case U8X8_MSG_GPIO_AND_DELAY_INIT:
-            RTT_LOGD(TAG, "U8X8_MSG_GPIO_AND_DELAY_INIT");
+            RTT_LOGV(TAG, "U8X8_MSG_GPIO_AND_DELAY_INIT");
             break;
 
         case U8X8_MSG_DELAY_MILLI:
-            RTT_LOGD(TAG, "U8X8_MSG_DELAY_MILLI: %d", arg_int);
+            RTT_LOGV(TAG, "U8X8_MSG_DELAY_MILLI: %d", arg_int);
             vTaskDelay(arg_int);
             break;
 
         case U8X8_MSG_GPIO_DC:
-            RTT_LOGD(TAG, "U8X8_MSG_GPIO_DC");
+            RTT_LOGV(TAG, "U8X8_MSG_GPIO_DC");
             break;
 
         case U8X8_MSG_GPIO_RESET:
-            RTT_LOGD(TAG, "U8X8_MSG_GPIO_RESET");
+            RTT_LOGV(TAG, "U8X8_MSG_GPIO_RESET");
             break;
 
         default:
@@ -204,7 +221,7 @@ uint8_t *pData = static_cast<uint8_t *>(arg_ptr);
 
     switch (msg) {
         case U8X8_MSG_BYTE_SEND:
-            RTT_LOGD(TAG, "Byte send. arg_int %d", arg_int);
+            RTT_LOGV(TAG, "Byte send. arg_int %d", arg_int);
             while (arg_int > 0) {
                 buffer.push_back(*pData);
                 pData++;
@@ -213,12 +230,12 @@ uint8_t *pData = static_cast<uint8_t *>(arg_ptr);
             break;
         
         case U8X8_MSG_BYTE_START_TRANSFER:
-            RTT_LOGD(TAG, "Start transfer");
+            RTT_LOGV(TAG, "Start transfer");
             buffer.clear();
             break;
         
         case U8X8_MSG_BYTE_END_TRANSFER:
-            RTT_LOGD(TAG, "End transfer and send %d bytes", buffer.size());
+            RTT_LOGV(TAG, "End transfer and send %d bytes", buffer.size());
             if (HAL_I2C_Master_Transmit(&hi2c1, u8x8_GetI2CAddress(u8x8) << 1, buffer.data(), buffer.size(), 100) != HAL_OK) {
                 RTT_LOGE(TAG, "Error transfer");
                 return 0;

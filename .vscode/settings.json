@@ -41,6 +41,7 @@
         "list": "cpp",
         "unordered_map": "cpp",
         "system_error": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "limits": "cpp"
     }
 }
