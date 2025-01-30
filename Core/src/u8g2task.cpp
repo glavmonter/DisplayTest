@@ -44,35 +44,79 @@ void InitU8GTask() {
 
 static uint8_t u8x8_byte_stm32_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
 static uint8_t u8x8_stm32_gpio_and_delay(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr);
+static uint8_t mui_draw_current_timer(mui_t *ui, uint8_t msg);
+static uint8_t mui_start_current_timer(mui_t *ui, uint8_t msg);
+static uint8_t mui_stop_current_timer(mui_t *ui, uint8_t msg);
 
 static U8G2 display;
 MUIU8G2 mui;
 
-uint8_t exit_code = 0;
-uint8_t number_input = 2;
+const fds_t fds_data[] = 
+    MUI_FORM(1)
+    MUI_AUX("SO")                           // Invisible field which will receive a form change event to stop the timer.
+    MUI_STYLE(0)
+    MUI_LABEL(5, 12, "Stopwatch")
+    MUI_XY("CT", 5, 24)                     // Поле, где отображается позиция таймера stopwatch
+    MUI_XYAT("GO", 20, 36, 2, " Start ")    // Переход на форму 2
+
+    MUI_FORM(2)
+    MUI_AUX("ST")
+    MUI_STYLE(0)
+    MUI_LABEL(5, 12, "Stopwatch")
+    MUI_XY("CT", 5, 24)
+    MUI_XYAT("GO", 20, 36, 1, " Stop ")
+;
 
 const muif_t muif_list[] = {
     MUIF_U8G2_FONT_STYLE(0, u8g2_font_helvR08_tr),
-    MUIF_VARIABLE("LV", &exit_code, mui_u8g2_btn_exit_wm_fi),
-    MUIF_U8G2_U8_MIN_MAX("IN", &number_input, 0, 9, mui_u8g2_u8_min_max_wm_mud_pi),
+
+    MUIF_RO("CT", mui_draw_current_timer),
+    MUIF_RO("ST", mui_start_current_timer),
+    MUIF_RO("SO", mui_stop_current_timer),
+    MUIF_BUTTON("GO", mui_u8g2_btn_goto_wm_fi),
     MUIF_LABEL(mui_u8g2_draw_text)
 };
 
+TickType_t stop_watch_timer = 0;   // Таймер в 1/100 секунды
+TickType_t stop_watch_millis = 0;
+bool is_stop_watch_running = 1;
 
+/**
+ * @brief Отрисовать текущее значение таймера
+ * 
+ * @param ui 
+ * @param msg 
+ * @return uint8_t 
+ */
+uint8_t mui_draw_current_timer(mui_t *ui, uint8_t msg) {
+char buffer[8];
+    if (msg == MUIF_MSG_DRAW) {
+        snprintf(buffer, sizeof(buffer), "%d.%d", stop_watch_timer/1000, (stop_watch_timer/10)%100);
+        display.drawStr(mui_get_x(ui), mui_get_y(ui), buffer);
+    }
+    return 0;
+}
 
-const fds_t fds_data[] = 
-    MUI_FORM(1)
-    MUI_STYLE(0)
-    MUI_LABEL(5, 12, "Countdown Time")
-    MUI_LABEL(5, 30, "Seconds:")
-    MUI_XY("IN", 60, 30)
-    MUI_XYT("LV", 64, 59, " OK ");
+uint8_t mui_start_current_timer(mui_t *ui, uint8_t msg) {
+(void)ui;
+    if (msg == MUIF_MSG_FORM_START) {
+        is_stop_watch_running = true;
+        stop_watch_millis = xTaskGetTickCount();
+        stop_watch_timer = 0;
+    }
+    return 0;
+}
 
-
+uint8_t mui_stop_current_timer(mui_t *ui, uint8_t msg) {
+(void)ui;
+    if (msg == MUIF_MSG_FORM_START) {
+        is_stop_watch_running = false;
+    }
+    return false;
+}
 
 void vDisplayTask(void *pvParameters) {
 (void)pvParameters;
-    char buf[16];
     RTT_LOGI(TAG, "Init");
 
     u8g2_Setup_ssd1309_i2c_128x64_noname0_f(display.getU8g2(), U8G2_R0, u8x8_byte_stm32_hw_i2c, u8x8_stm32_gpio_and_delay);
@@ -84,58 +128,50 @@ void vDisplayTask(void *pvParameters) {
     mui.begin(display, fds_data, muif_list, sizeof(muif_list) / sizeof(muif_t));
     mui.gotoForm(1, 0);
 
-    int32_t milliseconds = 0;
-
-    TickType_t t = xTaskGetTickCount();
+    TickType_t delay = xTaskGetTickCount();
+    bool is_redraw = true;
     for (;;) {
-        bool is_redraw = true;
-        uint32_t btn_state;
-        if (xQueueReceive(btnQueue, &btn_state, 0) == pdTRUE) {
-            if (btn_state & (Push)) {
-                RTT_LOGI(TAG, "MUI: sendSelect");
-                mui.sendSelect();
-                is_redraw = true;
-            } else if (btn_state & (Next)) {
-                RTT_LOGI(TAG, "MUI: nextField");
-                mui.nextField();
-                is_redraw = true;
-            } else if (btn_state & (Last)) {
-                RTT_LOGI(TAG, "MUI: prevField");
-                mui.prevField();
-                is_redraw = true;
-            }
-        }
-
         if (mui.isFormActive()) {
             if (is_redraw) {
                 display.firstPage();
                 do {
                     mui.draw();
                 } while (display.nextPage());
+                
                 is_redraw = false;
             }
 
-            milliseconds = number_input * 1000;
-        } else {
-            if (milliseconds <= 0) {
-                mui.restoreForm();
-            } else {
-                display.setFont(u8g2_font_helvR08_tr);
-                display.firstPage();
-                do {
-                    snprintf(buf, sizeof(buf), "%d", milliseconds);
-                    display.drawStr(0, 20, buf);
-                } while (display.nextPage());
+            uint32_t btn_state;
+            if (xQueueReceive(btnQueue, &btn_state, 0) == pdTRUE) {
+                if (btn_state & (Push)) {
+                    RTT_LOGI(TAG, "MUI: sendSelect");
+                    mui.sendSelect();
+                    is_redraw = true;
+                } else if (btn_state & (Next)) {
+                    RTT_LOGI(TAG, "MUI: nextField");
+                    mui.nextField();
+                    is_redraw = true;
+                } else if (btn_state & (Last)) {
+                    RTT_LOGI(TAG, "MUI: prevField");
+                    mui.prevField();
+                    is_redraw = true;
+                }
             }
-            milliseconds -= 100;
+
+            if (is_stop_watch_running) {
+                stop_watch_timer = xTaskGetTickCount() - stop_watch_millis;
+                is_redraw = true;
+            }
+        } else {
+            mui.gotoForm(1, 0); // Форма 1 всегда отображается.
         }
- 
-        vTaskDelayUntil(&t, 100);
+
+        vTaskDelayUntil(&delay, 50);
     }
 }
 
-etl::debounce<70/2, 500/2> push_button;
 
+static etl::debounce<70/2, 500/2> push_button;
 #define ENCODER_UPDATE_RATE     (50)
 
 void vButtonTask(void *pvParameters) {
