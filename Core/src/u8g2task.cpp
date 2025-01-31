@@ -48,100 +48,72 @@ void InitU8GTask() {
 static U8G2 u8g2;
 static MUIU8G2 mui;
 
-const char *animals[] = { "Bird", "Bison", "Cat", "Crow", "Dog", "Elephant", "Fish", "Gnu", "Horse", "Koala", "Lion", "Mouse", "Owl", "Rabbit", "Spider", "Turtle", "Zebra" };
 
-static uint8_t num_value = 0;
-static uint8_t bar_value = 0;
-static uint16_t animal_idx = 0;
+volatile uint8_t pre_decimal = 0; // 0 .. 100%
+volatile uint8_t decimal = 0;     // 0.0 .. 0.9%
 
-static uint16_t animal_name_list_get_cnt(void *data) {
-(void)data;
-    return sizeof(animals)/sizeof(*animals);
-}
+static uint8_t muif_decimal(mui_t *ui, uint8_t msg) {
+uint8_t ret = 0;
+    switch(msg) {
+        case MUIF_MSG_DRAW:
+            if (pre_decimal == 100) {
+                decimal = 0;
+            }
+            ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            break;
 
-static const char *animal_name_list_get_str(void *data, uint16_t index) {
-(void)data;
-    return animals[index];
-}
-
-static uint8_t mui_hrule(mui_t *ui, uint8_t msg) {
-    if (msg == MUIF_MSG_DRAW) {
-        u8g2.drawHLine(0, mui_get_y(ui), u8g2.getDisplayWidth());
+        case MUIF_MSG_EVENT_NEXT:
+            if (ui->is_mud == 0) {
+                ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            } else if (decimal == 9) {
+                pre_decimal++;
+                ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            } else if (decimal == 0 && pre_decimal == 100) {
+                pre_decimal = 0;
+                ret = 1;
+            } else {
+                ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            }
+            break;
+        
+        case MUIF_MSG_EVENT_PREV:
+            if (ui->is_mud == 0) {
+                ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            } else if (decimal == 0) {
+                if (pre_decimal == 0) {
+                    pre_decimal = 100;
+                    ret = 1;
+                } else {
+                    pre_decimal--;
+                    ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+                } 
+            } else {
+                ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
+            }
+            break;
+        default:
+            ret = mui_u8g2_u8_min_max_wm_mud_pi(ui, msg);
     }
-    return 0;
-}
 
-static uint8_t show_my_data(mui_t *ui, uint8_t msg) {
-    if (msg == MUIF_MSG_DRAW) {
-        char buffer[16];
-        auto x = mui_get_x(ui);
-        auto y = mui_get_y(ui);
-        u8g2.drawStr(x + 5, y, "Num:");
-        snprintf(buffer, sizeof(buffer), "%d", num_value);
-        u8g2.drawStr(x + 50, y, buffer);
-
-        u8g2.drawStr(x + 5, y + 12, "Bar:");
-        snprintf(buffer, sizeof(buffer), "%d", bar_value);
-        u8g2.drawStr(x + 50, y + 12, buffer);
-
-        u8g2.drawStr(x + 5, y + 24, "Animal:");
-        snprintf(buffer, sizeof(buffer), "%d=%s", animal_idx, animals[animal_idx]);
-        u8g2.drawStr(x + 50, y + 24, buffer);
-    }
-    return 0;
+    return ret;
 }
 
 const muif_t muif_list[] = {
-    MUIF_U8G2_FONT_STYLE(0, u8g2_font_helvR08_tr),  // Обычный шрифт
-    MUIF_U8G2_FONT_STYLE(1, u8g2_font_helvB08_tr),  // Жирный шрифт
-
-    MUIF_RO("HR", mui_hrule),
     MUIF_U8G2_LABEL(),
-    MUIF_RO("GP", mui_u8g2_goto_data),
-    MUIF_BUTTON("GC", mui_u8g2_goto_form_w1_pi),
-
-    MUIF_U8G2_U8_MIN_MAX("NV", &num_value, 0, 99, mui_u8g2_u8_min_max_wm_mud_pi),
-    MUIF_U8G2_U8_MIN_MAX_STEP("NB", &bar_value, 0, 16, 1, MUI_MMS_2X_BAR, mui_u8g2_u8_bar_wm_mud_pf),
-    MUIF_U8G2_U16_LIST("NA", &animal_idx, NULL, animal_name_list_get_str, animal_name_list_get_cnt, mui_u8g2_u16_list_line_wa_mud_pi),
-
-    MUIF_RO("SH", show_my_data),
-
-    MUIF_BUTTON("GO", mui_u8g2_btn_goto_wm_fi),
+    MUIF_U8G2_FONT_STYLE(0, u8g2_font_helvR08_tr),
+    
+    MUIF_U8G2_U8_MIN_MAX("PD", (uint8_t *)&pre_decimal, 0, 100, mui_u8g2_u8_min_max_wm_mud_pi),
+    MUIF_U8G2_U8_MIN_MAX("DE", (uint8_t *)&decimal, 0, 9, muif_decimal)
 };
 
 const fds_t fds_data[] = 
     MUI_FORM(1)
-    MUI_STYLE(1)
-    MUI_LABEL(5, 8, "SimpleRotary Lib")
+    MUI_STYLE(0)
     
-    MUI_STYLE(0)
-    MUI_XY("HR", 0, 11)
-    MUI_DATA("GP",
-        MUI_10 "Enter Data|"
-        MUI_12 "Show Data")
-    MUI_XYA("GC", 5, 24, 0)
-    MUI_XYA("GC", 5, 36, 1)
-
-    MUI_FORM(10)
-    MUI_STYLE(1)
-    MUI_LABEL(5, 8, "Enter Data")
-    MUI_XY("HR", 0, 11)
-    MUI_STYLE(0)
-    MUI_LABEL(5, 23, "Num:")
-    MUI_LABEL(5, 36, "Bar:")
-    MUI_LABEL(5, 49, "Animal:")
-    MUI_XY("NV", 50, 23)
-    MUI_XY("NB", 50, 36)
-    MUI_XYA("NA", 50, 49, 44)
-    MUI_XYAT("GO", 114, 60, 1, " OK ")
-
-    MUI_FORM(12)
-    MUI_STYLE(1)
-    MUI_LABEL(5, 8, "Show Data")
-    MUI_XY("HR", 0, 11)
-    MUI_STYLE(0)
-    MUI_XY("SH", 0, 23)
-    MUI_XYAT("GO", 114, 60, 1, " OK ")
+    MUI_XY("PD", 3, 20)
+    MUI_LABEL(22, 20, ".")
+    MUI_XY("DE", 26, 20)
+    MUI_LABEL(33, 20, "%")
 ;
 
 
